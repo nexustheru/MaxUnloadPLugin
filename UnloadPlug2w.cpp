@@ -633,6 +633,9 @@ void UnloadPlug2w::savesetting()
 
 void UnloadPlug2w::loadfiles()
 {
+	if(QDir(QCoreApplication::applicationDirPath() + "/Plugins/unloadplugPlugins").exists()==false)
+		QDir().mkdir(QCoreApplication::applicationDirPath() + "/Plugins/unloadplugPlugins");
+	
 	if (ui->checkBox->isChecked() == true)
 	{
 		QSettings settings(SettingsFile, QSettings::IniFormat);
