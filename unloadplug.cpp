@@ -21,10 +21,9 @@ public:
 	virtual ~UnloadPlug2() {};
   virtual void BeginEditParams(Interface *ip, IUtil * /*iu*/) {
 	  UnloadPlug2::ip = ip;
-	  up2 = new UnloadPlug2w();
-	  up2->loadsetting();
+	  up2 = new UnloadPlug2w();	  
 	  ip->AddRollupPage(*up2, L"Load Unload Plugin");
-	  
+	 
   }
   virtual void EndEditParams(Interface *ip, IUtil * /*iu*/) { ip->DeleteRollupPage(*up2); }
   // Implement this ourselves to ensure consistent heap usage.

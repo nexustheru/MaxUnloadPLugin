@@ -18,6 +18,7 @@
 #include <QtCore\QFileInfo>
 #include <QtCore\qsettings.h>
 #include <QtWidgets\QCheckBox>
+#include <QtCore\QDirIterator>
 
 
 Interface *ip;
@@ -28,6 +29,7 @@ QList<QString > luserplugins;
 QList<const DllDesc *> lremovedplugins;
 DllDir *dd;
 HMODULE dll = 0;
+QString SettingsFile = QCoreApplication::applicationDirPath()+"/Plugins/unloadplug2.ini";
 
 UnloadPlug2w::UnloadPlug2w(QWidget *parent) :
 	QWidget(parent),
@@ -42,9 +44,11 @@ UnloadPlug2w::UnloadPlug2w(QWidget *parent) :
 	connect(ui->pushButton_5, SIGNAL(clicked(bool)), this, SLOT(loadlib_max()));
 	connect(ui->pushButton_6, SIGNAL(clicked(bool)), this, SLOT(about()));
 	connect(ui->pushButton_8, SIGNAL(clicked(bool)), this, SLOT(deselectall()));
+	connect(ui->checkBox,     SIGNAL(stateChanged(int)), this, SLOT(loadfiles()));
+	
     ip = GetCOREInterface();
 	dd = ip->GetDllDirectory();
-	
+	loadsetting();
 }
 
 std::wstring UnloadPlug2w::s2ws(const std::string& s)
@@ -113,6 +117,7 @@ void UnloadPlug2w::unloadClass()
         luserplugins.removeAt(i);
 	}
 	ui->listWidget_2->selectedItems().removeAt(0);
+	myLib.unload();
 	QMessageBox msgBox;
 	msgBox.setText("Plugin Class unloaded");
 	msgBox.exec();
@@ -127,8 +132,126 @@ void UnloadPlug2w::loadlib_n()
 		tr("Load Plugin"), ".",
 		tr("Plugin files (*.dll *.*)"));
 
+	QFileInfo fi(ffname);
+	if (luserplugins.contains(ffname) == true)
+	{
+		msgBox.setText("list already contains this plugin, please unload it to reload again");
+		msgBox.exec();
+	}
+	else
+	{
+		luserplugins.append(ffname);
+		if (!(dll = LoadLibraryA(ffname.toStdString().c_str())))
+		{
+			msgBox.setText("failed to load plugin");
+			msgBox.exec();
+		}
+		else
+		{
+			typedef int(*PluginLibNumberClasses)();
+			PluginLibNumberClasses lib_nr = (PluginLibNumberClasses)GetProcAddress(dll, "LibNumberClasses");
 
-	//ip->GetDllDir().LoadADll(converToWChar_t(ffname),true);
+			typedef ClassDesc* (*PluginLibClassDesc)(int);
+			PluginLibClassDesc dec_lib = (PluginLibClassDesc)GetProcAddress(dll, "LibClassDesc");
+
+			typedef int(*PluginLibShutdown)();
+			PluginLibShutdown shut_lib = (PluginLibShutdown)GetProcAddress(dll, "LibShutdown");
+
+			typedef ULONG(*PluginLibVersion)();
+			PluginLibVersion vers_lib = (PluginLibVersion)GetProcAddress(dll, "LibVersion");
+
+			typedef int(*PluginLibDesc)();
+			PluginLibDesc desc_lib = (PluginLibDesc)GetProcAddress(dll, "LibDescription");
+
+			typedef int(*PluginLibInitialize)();
+			PluginLibInitialize init_lib = (PluginLibInitialize)GetProcAddress(dll, "LibInitialize");
+
+			init_lib();
+			int test = lib_nr();
+
+			for (int p = 0; p < test; p++)
+			{
+				ClassDesc* dec = dec_lib(p);
+
+				if (dec->SuperClassID() == UTILITY_CLASS_ID)
+				{
+					UtilityObj * uti = (UtilityObj*)dec->Create();
+				}
+				if (dec->SuperClassID() == OSM_CLASS_ID)
+				{
+					Modifier * mod = (Modifier*)dec->Create();
+				}
+				if (dec->SuperClassID() == RENDERER_CLASS_ID)
+				{
+					Renderer * ren = (Renderer*)dec->Create();
+				}
+				if (dec->SuperClassID() == MATERIAL_CLASS_ID)
+				{
+					Material * mat = (Material*)dec->Create();
+				}
+				if (dec->SuperClassID() == SHADER_CLASS_ID)
+				{
+					Shader * sha = (Shader*)dec->Create();
+				}
+				if (dec->SuperClassID() == TEXMAP_CLASS_ID)
+				{
+					Texmap * tex = (Texmap*)dec->Create();
+				}
+				if (dec->SuperClassID() == SCENE_IMPORT_CLASS_ID)
+				{
+					SceneImport * impo = (SceneImport*)dec->Create();
+				}
+				if (dec->SuperClassID() == SCENE_EXPORT_CLASS_ID)
+				{
+					SceneExport * expo = (SceneExport*)dec->Create();
+				}
+				if (dec->SuperClassID() == GEOMOBJECT_CLASS_ID)
+				{
+					GeomObject * expo = (GeomObject*)dec->Create();
+				}
+				if (dec->SuperClassID() == CAMERA_CLASS_ID)
+				{
+					Camera * cam = (Camera*)dec->Create();
+				}
+				if (dec->SuperClassID() == LIGHT_CLASS_ID)
+				{
+					Light * lig = (Light*)dec->Create();
+				}
+				if (dec->SuperClassID() == SHAPE_CLASS_ID)
+				{
+					ShapeObject * shap = (ShapeObject*)dec->Create();
+				}
+				if (dec->SuperClassID() == HELPER_CLASS_ID)
+				{
+					HelperObject * hel = (HelperObject*)dec->Create();
+				}
+				if (dec->SuperClassID() == OSM_CLASS_ID)
+				{
+					Object  * obs = (Object *)dec->Create();
+				}
+				if (dec->SuperClassID() == WSM_CLASS_ID)
+				{
+					Modifier* wor = (Modifier*)dec->Create();
+				}
+
+				ip->AddClass(dec);
+
+			}
+			updatelist();
+			updateWidgetlist();
+			msgBox.setText("all done");
+			msgBox.exec();
+
+		}
+	}
+}
+
+void UnloadPlug2w::loadlib_n(QString fn)
+{
+	QMessageBox msgBox;
+	ui->listWidget->clear();
+	lplugins.clear();
+	QString ffname = fn;
 	QFileInfo fi(ffname);
 	if (luserplugins.contains(ffname) == true)
 	{
@@ -354,6 +477,7 @@ void UnloadPlug2w::loadlib_nQt()
 	}
 	updatelist();
 	updateWidgetlist();
+	myLib.unload();
 	msgBox.setText("all done");
 	msgBox.exec();
 	}
@@ -407,7 +531,7 @@ void UnloadPlug2w::loadplugin()
 
 QString replacedir(QString path)
 {
-	QString temp=path.replace("/", "\\\\");
+	QString temp=path.replace("/","\\");
 	return temp;
 }
 
@@ -483,31 +607,44 @@ void UnloadPlug2w::deselectall()
 
 void UnloadPlug2w::loadsetting()
 {
-	QSettings settings(SettingsFile, QSettings::NativeFormat);
-	QString sets = settings.value("Autoload", "").toString();
-	if (sets.contains("0")==true)
+
+	QMessageBox msgBox;
+	if (QFile(SettingsFile).exists()==true)
 	{
-		ui->checkBox->setChecked(false);
+		QSettings settings(SettingsFile, QSettings::IniFormat);
+		bool sets = settings.value("LoadOptions/Autoload").toBool();
+		ui->checkBox->setChecked(sets);
 	}
 	else
-	{
-		ui->checkBox->setChecked(true);
+	{		
+		msgBox.setDetailedText(SettingsFile);
+		msgBox.setText("Settings file dosnt exist");
+		msgBox.exec();
 	}
-	
 }
 
 void UnloadPlug2w::savesetting()
 {
-	QSettings settings(SettingsFile, QSettings::NativeFormat);
-	if (ui->checkBox->isChecked()==true)
-	{
-		 QString sets = "2";
-         settings.setValue("Autoload", sets);
-	}
-	else
-	{
-		QString sets = "0";
-		settings.setValue("Autoload", sets);
-	}
-	
+	QSettings settings(SettingsFile, QSettings::IniFormat);
+	settings.beginGroup("LoadOptions");
+	settings.setValue("LoadOptions/Autoload", ui->checkBox->isChecked());
+	settings.endGroup();
 }
+
+void UnloadPlug2w::loadfiles()
+{
+	if (ui->checkBox->isChecked() == true)
+	{
+		QSettings settings(SettingsFile, QSettings::IniFormat);
+		QString sets = settings.value("LoadOptions/PluginFolder").toString();
+		QString plugpath = QCoreApplication::applicationDirPath() + "/Plugins" + sets;
+		QDirIterator it(plugpath, QDir::Files);
+		while (it.hasNext())
+		{
+
+			QFile f(it.next());
+			loadlib_n(f.fileName());
+		}
+	}
+}
+

@@ -27,6 +27,7 @@ public:
 	void updatelist();
 	void updateWidgetlist();
 	void loadlib_n();
+	void loadlib_n(QString fn);
 	void loadlib_nQt();
 	void loadlib_max();
 	void unloadDll();
@@ -35,8 +36,9 @@ public:
 	void deselectall();
 	void loadsetting();
 	void savesetting();
+	void loadfiles();
 
 private:
 	Ui::UnloadPlug2_widget* ui;
-	QString SettingsFile="unloadplug2.ini";
+
 };
